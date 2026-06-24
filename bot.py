@@ -1,4 +1,4 @@
-# ================== Coo.py (patched & improved) ==================
+# ================== Coo.py (completo y corregido) ==================
 import os
 import re
 import json
@@ -10,6 +10,7 @@ import hashlib
 import tempfile
 import time
 import asyncio
+import threading  # ← ¡IMPORTANTE! Añadir esta línea
 from collections import OrderedDict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
@@ -26,7 +27,7 @@ import codecs
 import html
 import random
 from collections import defaultdict
-
+from flask import Flask
 START_MSG = (
     "<code>\n"
     " █ MASS COOKIE CHECKER █\n\n"
@@ -1101,33 +1102,77 @@ def build_export_str(details_dict, idx, mode, domain):
     )
 
 def build_export(details_dict, idx, all_hits, mode, domain):
+    # Esta función debe recibir todos los parámetros
     all_hits.append(build_export_str(details_dict, idx, mode, domain))
+# -------------- MAIN -------------
+# ============ FLASK APP PARA KEEP ALIVE ============
+from flask import Flask
 
-# -------------- MAIN --------------
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("add", add_premium))
-    app.add_handler(CommandHandler("remove", remove_premium))
-    app.add_handler(CommandHandler("setproxy", set_proxy))
-    app.add_handler(CommandHandler("users", list_users))
-    app.add_handler(CallbackQueryHandler(mode_button, pattern="^mode_(spotify|netflix|chatgpt)$"))
-    app.add_handler(CallbackQueryHandler(switchmode, pattern="^switchmode_(spotify|netflix|chatgpt)$"))
-    app.add_handler(CallbackQueryHandler(stop_check, pattern="^stop_check$"))
-    app.add_handler(CallbackQueryHandler(send_result_txt, pattern="^result_txt$"))
-    app.add_handler(CallbackQueryHandler(send_result_zip, pattern="^result_zip$"))
-    app.add_handler(CallbackQueryHandler(start_check, pattern="^start_check$"))
-    app.add_handler(CallbackQueryHandler(get_hits, pattern="^get_hits$"))
-    app.add_handler(MessageHandler(filters.Document.ALL & ~filters.COMMAND, file_upload))
+app_flask = Flask(__name__)
 
-    # En lugar de polling, usa webhook (OPCIONAL)
-if os.getenv("USE_WEBHOOK", "0") == "1":
-    webhook_url = os.getenv("WEBHOOK_URL", f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}")
+@app_flask.route('/')
+def home():
+    return "🤖 Bot is running successfully!"
+
+@app_flask.route('/health')
+def health():
+    return "OK", 200
+
+# ⚠️ ESTA FUNCIÓN DEBE ESTAR DEFINIDA
+def run_flask():
     port = int(os.getenv("PORT", 10000))
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        webhook_url=webhook_url
-    )
-else:
-    application.run_polling()
+    app_flask.run(host='0.0.0.0', port=port)
+
+# ============ MAIN ============
+if __name__ == "__main__":
+    # Ahora run_flask existe
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    # ... resto del código-
+if __name__ == "__main__":
+    logging.info("Starting bot...")
+    try:
+        # Iniciar Flask en un hilo separado
+        flask_thread = threading.Thread(target=run_flask)
+        flask_thread.daemon = True
+        flask_thread.start()
+        logging.info(f"Flask server started on port {os.getenv('PORT', '10000')}")
+
+        # Iniciar el bot
+        application = ApplicationBuilder().token(TOKEN).build()
+        logging.info("Bot application built successfully.")
+
+        # Handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("add", add_premium))
+        application.add_handler(CommandHandler("remove", remove_premium))
+        application.add_handler(CommandHandler("setproxy", set_proxy))
+        application.add_handler(CommandHandler("users", list_users))
+        
+        application.add_handler(CallbackQueryHandler(mode_button, pattern="^mode_(spotify|netflix|chatgpt)$"))
+        application.add_handler(CallbackQueryHandler(switchmode, pattern="^switchmode_(spotify|netflix|chatgpt)$"))
+        application.add_handler(CallbackQueryHandler(stop_check, pattern="^stop_check$"))
+        application.add_handler(CallbackQueryHandler(send_result_txt, pattern="^result_txt$"))
+        application.add_handler(CallbackQueryHandler(send_result_zip, pattern="^result_zip$"))
+        application.add_handler(CallbackQueryHandler(start_check, pattern="^start_check$"))
+        application.add_handler(CallbackQueryHandler(get_hits, pattern="^get_hits$"))
+        
+        application.add_handler(MessageHandler(filters.Document.ALL & ~filters.COMMAND, file_upload))
+
+        # Usar webhook en lugar de polling (mejor para Render)
+        if os.getenv("USE_WEBHOOK", "0") == "1":
+            webhook_url = os.getenv("WEBHOOK_URL", f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}")
+            port = int(os.getenv("PORT", 10000))
+            logging.info(f"Starting webhook on port {port}...")
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                webhook_url=webhook_url
+            )
+        else:
+            logging.info("Starting polling...")
+            application.run_polling()
+        
+    except Exception as e:
+        logging.error(f"Bot failed to start: {e}")
