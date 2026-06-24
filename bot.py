@@ -1120,4 +1120,14 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(get_hits, pattern="^get_hits$"))
     app.add_handler(MessageHandler(filters.Document.ALL & ~filters.COMMAND, file_upload))
 
-    app.run_polling()
+    # En lugar de polling, usa webhook (OPCIONAL)
+if os.getenv("USE_WEBHOOK", "0") == "1":
+    webhook_url = os.getenv("WEBHOOK_URL", f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}")
+    port = int(os.getenv("PORT", 10000))
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        webhook_url=webhook_url
+    )
+else:
+    application.run_polling()
