@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: telegram-cookie-checker-bot
+    env: python
+    region: oregon  # o frankfurt si prefieres Europa
+    plan: free  # o starter para mejor rendimiento
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python Coo.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: USE_WEBHOOK
+        value: "0"  # Usa polling en lugar de webhook
+      - key: TZ
+        value: America/New_York
+      - key: BOT_TOKEN
+        sync: false  # Esto lo configurarás manualmente en el dashboard
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ADMIN_CHANNEL
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true
+    numReplicas: 1
+    restartPolicy: always
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    resources:
+      cpu: 0.5
+      memory: 512
+    runtime: python
+    runtimeVersion: "3.11"
+    buildFilter:
+      paths:
+        - Coo.py
+        - requirements.txt
+        - .env
