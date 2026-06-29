@@ -44,7 +44,7 @@ MODE_MARKUP = InlineKeyboardMarkup([
      InlineKeyboardButton("ChatGPT", callback_data="mode_chatgpt")]
 ])
 
-TOKEN = "8742088672:AAHgRgxLno4-M-9hH26_ap6aG7QOoEaLcW0"
+TOKEN = "8742088672:AAFwavw4W_yFQcZ-jwkag7Bfm7ID2OZe7CU"
 
 # --- CONSTANTS ---
 OWNER_ID = 8481156855
